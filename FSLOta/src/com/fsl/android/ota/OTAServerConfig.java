@@ -26,6 +26,12 @@ import java.io.IOException;
 
 import android.util.Log;
 
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Executors;
+import java.util.Calendar;
+import static java.util.concurrent.TimeUnit.*;
+import android.content.ComponentName;
+
 // TODO: get the configure from a configure file.
 public class OTAServerConfig {
 	
@@ -36,6 +42,7 @@ public class OTAServerConfig {
 	URL buildpropURL;
         private final String default_build_prop_file = "build.prop";
         private final String default_ota_zip_file = ".ota.zip";
+	private long delay;
 	String product;
 	final String TAG = "OTA_SC";
 	final String configFile = "/system/etc/ota.conf";
@@ -44,6 +51,7 @@ public class OTAServerConfig {
 	final String port_config_str = "port";
         public static final String build_tag = "build";
         public static final String ota_tag = "ota";
+	public static final String monthly_tag = "monthly";
 
 	public OTAServerConfig (String productname) throws MalformedURLException {
 		if (loadConfigureFromFile(configFile, productname) == false) {
