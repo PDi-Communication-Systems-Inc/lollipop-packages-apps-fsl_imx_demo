@@ -87,6 +87,7 @@ public class OTAServerConfig {
                                  default_build_prop_file + "\n");
                            build_filename = default_build_prop_file;
                         }
+			String build_monthly_check = parser.getProp(monthly_tag);
 
 			String fileaddr = new String(product + "/" + product + ota_filename);
 			String buildconfigAddr = new String(product + "/" + build_filename);
@@ -96,6 +97,21 @@ public class OTAServerConfig {
 
 			Log.d(TAG, "Package is at URL: " + updatePackageURL);
 			Log.d(TAG, "Build Property is at URL: " + buildpropURL);
+
+                        // Prepare automate check if enabled
+                        if (build_monthly_check != null) {
+                           Calendar c = Calendar.getInstance();
+                           long checkTime = Long.parseLong(build_monthly_check);
+                           delay = checkTime - c.getTimeInMillis();
+                           if (delay <= 0) {
+                              // Determine next 30 day delay if original value expired
+                              delay = 2592000000L;
+                              parser.setProp(monthly_tag,Long.toString(delay));
+                           }
+                        }
+                        else {
+                            delay = Long.MIN_VALUE;
+                        }
 
 		} catch (Exception e) {
 			Log.e(TAG, "wrong format/error of OTA configure file.");
