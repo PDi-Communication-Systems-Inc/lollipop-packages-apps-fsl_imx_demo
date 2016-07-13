@@ -68,7 +68,7 @@ public class OTAServerManager  {
 	boolean mStop = false;
 	Context mContext;
 	String mUpdatePackageLocation = "/cache/update.zip";
-	String TAG = "OTA";
+	String TAG = "OTA_SM";
 	Handler mSelfHandler;
 	WakeLock mWakelock;
 	
@@ -81,6 +81,14 @@ public class OTAServerManager  {
 
 	public OTAStateChangeListener getmListener() {
 		return mListener;
+	}
+
+	public OTAServerConfig getConfig() {
+	   return mConfig;
+        }
+
+	public BuildPropParser getParser() {
+	   return parser;
 	}
 
 	public void setmListener(OTAStateChangeListener mListener) {
@@ -135,7 +143,18 @@ public class OTAServerManager  {
 		}
 		String localNumVersion = Build.VERSION.INCREMENTAL;
 		Long buildutc = Build.TIME;
-		Long remoteBuildUTC = (Long.parseLong(parser.getProp("ro.build.date.utc"))) * 1000;
+
+                String utcString = parser.getProp("ro.build.date.utc");
+		Long remoteBuildUTC;
+		if ((utcString != null) && (!(utcString.equals("null")))){
+		    remoteBuildUTC = (Long.parseLong(utcString)) * 1000;
+                }
+                else {
+                   remoteBuildUTC = Long.MIN_VALUE;
+                   Log.e(TAG, "UTC date not found in config file " + 
+                         "- config may be corrupted or missing");
+                }
+
 		// *1000 because Build.java also *1000, align with it.
 		Log.d(TAG, "Local Version:" + Build.VERSION.INCREMENTAL + "server Version:" + parser.getNumRelease());
                  Log.d(TAG, "BOARD BOOTTYPE:" + SystemProperties.get("ro.boot.storage_type"));
@@ -324,40 +343,83 @@ public class OTAServerManager  {
 	// download the property list from remote site, and parse it to peroerty list.
 	// the caller can parser this list and get information.
 	BuildPropParser getTargetPackagePropertyList(URL configURL) {
-		
-		// first try to download the property list file. the build.prop of target image.
-		try {
-			URL url =  configURL;
-			url.openConnection();
-			InputStream reader = url.openStream();
-			ByteArrayOutputStream writer = new ByteArrayOutputStream();
-			byte[] buffer = new byte[153600];
-			int totalBufRead = 0;
-			int bytesRead;
-			
-			Log.d(TAG, "start download: " + url.toString() + "to buffer");
-		
-			while ((bytesRead = reader.read(buffer)) > 0) {
-				writer.write(buffer, 0, bytesRead);
-				buffer = new byte[153600];
-				totalBufRead += bytesRead;
-			}
-			
-		
-		Log.d(TAG, "download finish:" + (new Integer(totalBufRead).toString()) + "bytes download");
-		reader.close();
-		
-		BuildPropParser parser = new BuildPropParser(writer, mContext);
-		
-		return parser;
-		
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
-		} catch (Exception e) {
-			e.printStackTrace();
-			return null;
-		}
+                InputStream reader = null;
+                ByteArrayOutputStream writer = null;    
+                BuildPropParser parser = null;
+                final int bufSize = 1024;
+
+                // first try to download the property list file. the build.prop of target image.
+                try {
+                        URL url =  configURL;
+                        URLConnection ucon;
+    
+                        /* Use the URL configuraiton to open a connection 
+                           to the ota server */
+                        ucon = url.openConnection();
+    
+                        /* Since you get a URLConnection, use it to get the 
+                           InputStream */
+                        reader = ucon.getInputStream();
+    
+                        /* Now that the InputStream is open, get the content
+                           length */
+                        final int contentLength = ucon.getContentLength();
+    
+                        /* Put some thought into the buffer 
+                           allocation */
+                        byte[] buffer = new byte[bufSize];
+                        if (contentLength != -1) {
+                            writer = new ByteArrayOutputStream(contentLength);
+                        }   
+                        else {    
+                            writer = new ByteArrayOutputStream(153600);
+                        }   
+                        int totalBufRead = 0;
+                        int bytesRead;
+    
+                        Log.d(TAG, "start download: " + url.toString() + " to buffer");
+    
+                        while ((bytesRead = reader.read(buffer)) > 0) {
+                                // write current segment into byte output stream
+                                writer.write(buffer, 0, bytesRead);
+                                Log.d(TAG, "wrote " + bytesRead + " into byte output stream");
+                                totalBufRead += bytesRead;
+
+                                // scrub before reading next segment
+                                buffer = new byte[bufSize];
+                        }   
+    
+                Log.d(TAG, "download finished: " + (new Integer(totalBufRead).toString()) + " bytes download");
+    
+                parser = new BuildPropParser(writer, mContext);
+    
+                } catch (IOException e) {
+                        e.printStackTrace();
+                        return null;
+                } catch (Exception e) {
+                        e.printStackTrace();
+                        return null;
+                } finally {
+                    if (reader != null) {
+                        try {
+                           reader.close();
+                        } catch (IOException e) {
+                             e.printStackTrace();
+                             return null;
+                        }   
+                    }   
+                    if (writer != null) {
+                       try {
+                          writer.close();
+                       } catch (IOException e) {
+                            e.printStackTrace();
+                            return null;
+                       }   
+                    }   
+                }   
+
+           return parser;
+
 	}
 
 	public boolean handleMessage(Message arg0) {

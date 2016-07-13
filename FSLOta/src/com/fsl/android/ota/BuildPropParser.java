@@ -27,7 +27,7 @@ public class BuildPropParser {
     File tmpFile;
     Context mContext;
     
-    final String TAG = "OTA";
+    final String TAG = "OTA_BPP";
 
     BuildPropParser(ByteArrayOutputStream out, Context context) {
     	mContext = context;
@@ -47,6 +47,14 @@ public class BuildPropParser {
     		return (String) propHM.get(propname); 
     	else 
     		return null;
+    }
+
+    public String setProp(String propname, String val) {
+       if ((propHM != null) && (propname != null) && (val != null)) {
+           // returns previous value or null
+           return propHM.put(propname, val);
+       }
+       return null;
     }
 
     private void setByteArrayStream(ByteArrayOutputStream out) {
@@ -74,14 +82,46 @@ public class BuildPropParser {
             BufferedReader in = new BufferedReader(reader);
             String string;
             while ((string = in.readLine()) != null) {
+
+		// ignore comment lines 
+		if (string.startsWith("#") == true ) {
+		   continue;
+                }
+
                 Scanner scan = new Scanner(string);
+		Log.d(TAG, "Reading line: "  + string);
                 scan.useDelimiter("=");
                 try {
-                    propHM.put(scan.next(), scan.next());
+	
+		    String key = null;
+		    if (scan.hasNext()) {
+		       key = scan.next();
+		    }
+		    else {
+			Log.e(TAG, "No key to read from line: " + string);
+			continue;
+		    }
+
+		    String val = null;
+		    if (scan.hasNext()) {
+		       val = scan.next();
+		    }
+		    else {
+		       Log.e(TAG, "No value to read for key " + key + 
+				  " from line " + string);
+		       continue;
+		    }
+
+		    Log.d(TAG, "Placing " + val + " into key " + key);
+                    propHM.put(key, val);
                 } catch (NoSuchElementException e) {
+		    Log.e(TAG, "Parsing Problem: " + e.toString());
+		    e.printStackTrace();
                     continue;
                 }
             }
+	    Log.d(TAG, "Bulid Property Parser inserted " + propHM.size()
+                  + " into the property hashmap ");
             in.close();
         } catch (IOException e) {
             e.printStackTrace();

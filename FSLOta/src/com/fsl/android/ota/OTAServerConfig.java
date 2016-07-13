@@ -29,74 +29,74 @@ import android.util.Log;
 // TODO: get the configure from a configure file.
 public class OTAServerConfig {
 	
-	final String default_serveraddr = "10.192.224.88";
+        final String default_serveraddr = "pdiarm.com";
 	final String default_protocol = "http";
-	final int default_port = 10888;
+	final int default_port = 80;
 	URL updatePackageURL;
 	URL buildpropURL;
+        private final String default_build_prop_file = "build.prop";
+        private final String default_ota_zip_file = ".ota.zip";
 	String product;
-	final String TAG = "OTA";
+	final String TAG = "OTA_SC";
 	final String configFile = "/system/etc/ota.conf";
-	final String machineFile = "/sys/devices/soc0/machine";
+        public static final String protocol_tag = "protocol";
 	final String server_ip_config = "server";
 	final String port_config_str = "port";
-	final String android_nickname = "ota_folder_suffix";
-	String machineString = null;
+        public static final String build_tag = "build";
+        public static final String ota_tag = "ota";
+
 	public OTAServerConfig (String productname) throws MalformedURLException {
-		if (loadConfigureFromFile(configFile, productname) == false)
-			defaultConfigure(productname);
-	}
-	void readMachine() {
-		File file = new File(machineFile);
-		BufferedReader reader = null;
-		try {
-			reader = new BufferedReader(new FileReader(file));
-			machineString = reader.readLine();
-			reader.close();
-		} catch (IOException e) {
-			e.printStackTrace();
+		if (loadConfigureFromFile(configFile, productname) == false) {
+                   Log.w(TAG, "Loading default configuration for product " + productname + ".");
+		   defaultConfigure(productname);
 		}
 	}
 
 	boolean loadConfigureFromFile (String configFile, String product) {
 		try {
 			BuildPropParser parser = new BuildPropParser(new File(configFile), null);
-			String server = parser.getProp(server_ip_config);
-			String port_str = parser.getProp(port_config_str);
-			String android_name = parser.getProp(android_nickname);
-			int port = new Long(port_str).intValue();
-			String fileaddr = new String(product + "_" + android_name + "/" + product + ".ota.zip");
-			String buildconfigAddr = new String(product + "_" + android_name + "/" + "build.prop");
 
-			readMachine();
-
-                        String boottype = SystemProperties.get("ro.boot.storage_type");
-			if (machineString.indexOf("DualLite") != -1) {
-                               if (boottype.equals("sd"))
-                                  {fileaddr = fileaddr + ".imx6dl_sd";}
-                              else if (boottype.equals("nand"))
-                                  {fileaddr = fileaddr + ".imx6dl_nand";}
-                              else
-                              fileaddr = fileaddr + ".imx6dl";
-			} else if (machineString.indexOf("Quad") != -1) {
-                               if (boottype.equals("sd"))
-                                  {fileaddr = fileaddr + ".imx6q_sd";}
-                              else if (boottype.equals("nand"))
-                                  {fileaddr = fileaddr + ".imx6q_nand";}
-                              else
-                              fileaddr = fileaddr + ".imx6q";
-			} else if (machineString.indexOf("SoloLite") != -1) {
-				fileaddr = fileaddr + ".imx6sl";
-			} else if (machineString.indexOf("SoloX") != -1) {
-                               if (boottype.equals("nand"))
-                                  {fileaddr = fileaddr + ".imx6sx_nand";
+                        String protocol = parser.getProp(protocol_tag);                    
+                        if (protocol == null) {
+                           Log.w(TAG, "Using default protocol " + default_protocol + "\n");
+                           protocol = default_protocol;
                         }
-                              else
-			      fileaddr = fileaddr + ".imx6sx";
-			}
+
+			String server = parser.getProp(server_ip_config);
+                        if (server == null) {
+			   Log.w(TAG, "Using default server " + default_serveraddr + "\n");
+                           server = default_serveraddr;
+                        }
+			String port_str = parser.getProp(port_config_str);
+                        int port;
+                        if (port_str != null) {
+                           port = new Long(port_str).intValue();
+                        }
+                        else {
+			   Log.w(TAG, "Using default port " + default_port + "\n");
+                           port = default_port;
+                        }
+                        String ota_filename = parser.getProp(ota_tag);
+                        if (ota_filename == null) {
+                           Log.w(TAG, "Using default OTA suffix " + default_ota_zip_file + "\n");
+                           ota_filename = default_ota_zip_file;
+                        }
+                        String build_filename = parser.getProp(build_tag);
+                        if (build_filename == null) {
+                           Log.w(TAG, "Using default build config suffix " + 
+                                 default_build_prop_file + "\n");
+                           build_filename = default_build_prop_file;
+                        }
+
+			String fileaddr = new String(product + "/" + product + ota_filename);
+			String buildconfigAddr = new String(product + "/" + build_filename);
 
 			updatePackageURL = new URL(default_protocol, server, port, fileaddr);
 			buildpropURL = new URL(default_protocol, server, port, buildconfigAddr);
+
+			Log.d(TAG, "Package is at URL: " + updatePackageURL);
+			Log.d(TAG, "Build Property is at URL: " + buildpropURL);
+
 		} catch (Exception e) {
 			Log.e(TAG, "wrong format/error of OTA configure file.");
 			e.printStackTrace();
@@ -109,11 +109,11 @@ public class OTAServerConfig {
 	void defaultConfigure(String productname) throws MalformedURLException
 	{
 		product = productname;
-		String fileaddr = new String(product + "/" + product + ".ota.zip");
-		String buildconfigAddr = new String(product + "/" + "build.prop"); 
+		String fileaddr = new String(product + "/" + product + default_ota_zip_file);
+		String buildconfigAddr = new String(product + "/" + default_build_prop_file); 
 		updatePackageURL = new URL(default_protocol, default_serveraddr, default_port, fileaddr );
 		buildpropURL = new URL(default_protocol, default_serveraddr, default_port, buildconfigAddr);
-		Log.d(TAG, "create a new server config: package url " + updatePackageURL.toString() + "port:" + updatePackageURL.getPort());
+		Log.d(TAG, "create a new server config: package url " + updatePackageURL.toString() + ":" + updatePackageURL.getPort());
 		Log.d(TAG, "build.prop URL:" + buildpropURL.toString());
 	}
 	
