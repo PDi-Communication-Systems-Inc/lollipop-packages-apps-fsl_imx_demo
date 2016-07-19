@@ -45,7 +45,8 @@ public class OTAServerConfig {
 	private long delay;
 	String product;
 	final String TAG = "OTA_SC";
-	final String configFile = "/system/etc/ota.conf";
+	final String configFileSys = "/system/etc/ota.conf";
+        final String configFileData = "/data/system/ota.conf";
         public static final String protocol_tag = "protocol";
 	final String server_ip_config = "server";
 	final String port_config_str = "port";
@@ -54,16 +55,25 @@ public class OTAServerConfig {
 	public static final String monthly_tag = "monthly";
 
 	public OTAServerConfig (String productname) throws MalformedURLException {
+
+                /* Try to load user configured ota.conf first, 
+                   if that does not exist use the default system 
+                   ota.conf */
+                File configFile = new File(configFileData);
+                if (!configFile.exists()) {
+                   configFile = new File(configFileSys);
+                }
+
 		if (loadConfigureFromFile(configFile, productname) == false) {
                    Log.w(TAG, "Loading default configuration for product " + productname + ".");
 		   defaultConfigure(productname);
 		}
 	}
 
-	boolean loadConfigureFromFile (String configFile, String product) {
+	boolean loadConfigureFromFile (File configFile, String product) {
 		try {
-			BuildPropParser parser = new BuildPropParser(new File(configFile), null);
-
+			BuildPropParser parser = new BuildPropParser(configFile, null);
+                                                  
                         String protocol = parser.getProp(protocol_tag);                    
                         if (protocol == null) {
                            Log.w(TAG, "Using default protocol " + default_protocol + "\n");
