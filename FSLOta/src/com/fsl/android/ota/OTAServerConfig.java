@@ -35,7 +35,7 @@ import android.content.ComponentName;
 // TODO: get the configure from a configure file.
 public class OTAServerConfig {
 	
-        final String default_serveraddr = "pdiarm.com";
+        final String default_serveraddr = "ota.pdiarm.com";
 	final String default_protocol = "http";
 	final int default_port = 80;
 	URL updatePackageURL;
